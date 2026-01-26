@@ -247,9 +247,9 @@ Mục đích: Đảm bảo trạng thái vé luôn được cập nhật tự đ
 FROM VE V
 WHERE V.MaVe = 'V006';`,
       mainQuery: `-- Thêm bản ghi thanh toán (Trigger sẽ tự động cập nhật trạng thái vé)
-DECLARE @MaThanhToan VARCHAR(10) = CONCAT('TT', FORMAT(GETDATE(), 'yyyyMMddHHmmss'));
+-- Lưu ý: Sử dụng CONCAT trực tiếp trong VALUES để tránh lỗi khi split queries
 INSERT INTO THANHTOAN (MaThanhToan, MaVe, PhuongThuc, NgayThanhToan, SoTien, TrangThai)
-VALUES (@MaThanhToan, 'V006', N'Momo', GETDATE(), 660000, N'Thành công');`,
+VALUES (CONCAT('TT', FORMAT(GETDATE(), 'yyyyMMddHHmmss')), 'V006', N'Momo', GETDATE(), 660000, N'Thành công');`,
       afterQuery: `-- Xem trạng thái vé sau khi trigger chạy
 SELECT V.MaVe, V.TrangThai AS TrangThaiVe,
     TT.MaThanhToan,
