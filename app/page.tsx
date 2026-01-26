@@ -105,8 +105,244 @@ JOIN HANHKHACH HK ON V.MaHK = HK.MaHK
 JOIN GHE G ON V.MaGhe = G.MaGhe
 WHERE V.MaVe = 'VE001';`;
 
+  const resetDataQuery = `-- Xóa dữ liệu cũ (Theo thứ tự an toàn)
+
+TRUNCATE TABLE CHECKIN; TRUNCATE TABLE THANHTOAN; TRUNCATE TABLE HANHLY;
+
+DELETE FROM VE; DELETE FROM PHANCONG; DELETE FROM NHANVIEN;
+
+DELETE FROM LICHBAY; DELETE FROM CHUYENBAY; DELETE FROM GHE;
+
+DELETE FROM TUYENBAY; DELETE FROM MAYBAY; DELETE FROM SANBAY;
+
+DELETE FROM HANHKHACH; DELETE FROM NGUOIDUNG; DELETE FROM ROLES; DELETE FROM HANGHANGKHONG;
+
+
+
+-- 1. HANGHANGKHONG (Hãng hàng không)
+
+INSERT INTO HANGHANGKHONG VALUES 
+
+('VNA', N'Vietnam Airlines', N'Việt Nam', 1956, N'Hà Nội'),
+
+('VJC', N'Vietjet Air', N'Việt Nam', 2007, N'TP.HCM'),
+
+('BAV', N'Bamboo Airways', N'Việt Nam', 2017, N'Hà Nội'),
+
+('VTR', N'Vietravel Airlines', N'Việt Nam', 2019, N'Thừa Thiên Huế');
+
+
+
+-- 2. SANBAY (Sân bay đa dạng vùng miền)
+
+INSERT INTO SANBAY VALUES 
+
+('HAN', N'Sân bay Nội Bài', N'Hà Nội', N'Việt Nam', N'Hoạt động'),
+
+('SGN', N'Sân bay Tân Sơn Nhất', N'TP.HCM', N'Việt Nam', N'Hoạt động'),
+
+('DAD', N'Sân bay Đà Nẵng', N'Đà Nẵng', N'Việt Nam', N'Hoạt động'),
+
+('CXR', N'Sân bay Cam Ranh', N'Khánh Hòa', N'Việt Nam', N'Hoạt động'),
+
+('PQC', N'Sân bay Phú Quốc', N'Kiên Giang', N'Việt Nam', N'Hoạt động'),
+
+('HUI', N'Sân bay Phú Bài', N'Huế', N'Việt Nam', N'Hoạt động'),
+
+('VCA', N'Sân bay Cần Thơ', N'Cần Thơ', N'Việt Nam', N'Hoạt động');
+
+
+
+-- 3. MAYBAY (Đầy đủ các trạng thái)
+
+INSERT INTO MAYBAY VALUES 
+
+('VN-A321', 'VNA', N'Airbus A321', 184, N'Sẵn sàng'),
+
+('VN-A350', 'VNA', N'Airbus A350', 305, N'Đang bay'),
+
+('VJ-A320', 'VJC', N'Airbus A320', 180, N'Bảo trì'),
+
+('VJ-A321', 'VJC', N'Airbus A321', 230, N'Sẵn sàng'),
+
+('QH-B787', 'BAV', N'Boeing 787', 294, N'Sẵn sàng'),
+
+('VU-A321', 'VTR', N'Airbus A321', 220, N'Sẵn sàng');
+
+
+
+-- 4. TUYENBAY
+
+INSERT INTO TUYENBAY VALUES 
+
+('HANSGN', 'HAN', 'SGN', 1160, 125, 1200000, N'Hoạt động'),
+
+('SGNHAN', 'SGN', 'HAN', 1160, 125, 1200000, N'Hoạt động'),
+
+('SGNDAD', 'SGN', 'DAD', 600, 80, 800000, N'Hoạt động'),
+
+('DADSGN', 'DAD', 'SGN', 600, 80, 800000, N'Hoạt động'),
+
+('HANPQC', 'HAN', 'PQC', 1200, 135, 1500000, N'Hoạt động'),
+
+('SGNVCA', 'SGN', 'VCA', 170, 45, 500000, N'Hoạt động');
+
+
+
+-- 5. CHUYENBAY (Đầy đủ các trạng thái: Đã hạ cánh, Đúng giờ, Bị hoãn, Hủy chuyến)
+
+INSERT INTO CHUYENBAY VALUES 
+
+('CB001', 'HANSGN', 'VN-A321', '2024-05-10', '07:00', '09:05', 'Gate 01', N'Đã hạ cánh'),
+
+('CB002', 'HANSGN', 'VN-A350', '2024-05-10', '10:00', '12:05', 'Gate 02', N'Đã hạ cánh'),
+
+('CB003', 'SGNHAN', 'VJ-A321', '2024-05-15', '13:00', '15:05', 'Gate 05', N'Đúng giờ'),
+
+('CB004', 'SGNDAD', 'QH-B787', '2024-05-15', '14:00', '15:20', 'Gate 08', N'Bị hoãn'),
+
+('CB005', 'HANPQC', 'VU-A321', '2024-05-16', '08:00', '10:15', 'Gate 03', N'Hủy chuyến'),
+
+('CB006', 'SGNVCA', 'VJ-A320', '2024-05-15', '18:00', '18:45', 'Gate 01', N'Đúng giờ');
+
+
+
+-- 6. GHE (Tạo danh mục ghế mẫu)
+
+INSERT INTO GHE VALUES 
+
+('G-VN01', 'VN-A321', '01A', N'Thương gia', 1, 0),
+
+('G-VN02', 'VN-A321', '01B', N'Thương gia', 0, 0),
+
+('G-VN10', 'VN-A321', '10C', N'Phổ thông', 0, 1),
+
+('G-VJ01', 'VJ-A321', '01A', N'Phổ thông', 1, 1),
+
+('G-QH01', 'QH-B787', '01A', N'Thương gia', 1, 0);
+
+
+
+-- 7. HANHKHACH
+
+INSERT INTO HANHKHACH VALUES 
+
+('HK001', N'Trần Văn An', '001090123456', N'Nam', '1988-02-15', N'Việt Nam', '0901112223', 'an.tv@gmail.com'),
+
+('HK002', N'Lê Thị Bình', '079095678901', N'Nữ', '1995-10-20', N'Việt Nam', '0904445556', 'binh.lt@gmail.com'),
+
+('HK003', N'Nguyễn Công Phượng', '038095000111', N'Nam', '1995-01-21', N'Việt Nam', '0907778889', 'phuong.nc@gmail.com'),
+
+('HK004', N'Michael Jordan', 'B99887766', N'Nam', '1980-05-05', N'USA', '0123456789', 'mj@nike.com'),
+
+('HK005', N'Hoàng Xuân Vinh', '001080999888', N'Nam', '1974-10-06', N'Việt Nam', '0909990001', 'vinh.hx@olympic.vn');
+
+
+
+-- 8. VE (Trạng thái thanh toán và Check-in đa dạng)
+
+INSERT INTO VE VALUES 
+
+('V001', 'CB001', 'VNA', 'HK001', 'G-VN01', '2024-05-10', 125, 3500000, 350000, 3850000, N'Thẻ tín dụng', N'Đã thanh toán', N'Đã Checkin'),
+
+('V002', 'CB001', 'VNA', 'HK002', 'G-VN02', '2024-05-10', 125, 3500000, 350000, 3850000, N'Thẻ tín dụng', N'Đã thanh toán', N'Đã Checkin'),
+
+('V003', 'CB003', 'VJC', 'HK003', 'G-VJ01', '2024-05-15', 125, 1200000, 120000, 1320000, N'Chuyển khoản', N'Đã thanh toán', N'Chưa Checkin'),
+
+('V004', 'CB004', 'BAV', 'HK004', 'G-QH01', '2024-05-15', 80, 2000000, 200000, 2200000, N'Ví điện tử', N'Đã thanh toán', N'Chưa Checkin'),
+
+('V005', 'CB005', 'VTR', 'HK005', 'G-VN10', '2024-05-16', 135, 1800000, 180000, 1980000, N'Tiền mặt', N'Đã hủy', N'Chưa Checkin'),
+
+('V006', 'CB006', 'VJC', 'HK001', 'G-VJ01', '2024-05-15', 45, 600000, 60000, 660000, N'Chuyển khoản', N'Chờ thanh toán', N'Chưa Checkin');
+
+
+
+-- 9. THANHTOAN
+
+INSERT INTO THANHTOAN VALUES 
+
+('TT001', 'V001', N'Visa Card', '2024-05-01', 3850000, N'Thành công'),
+
+('TT002', 'V002', N'Master Card', '2024-05-02', 3850000, N'Thành công'),
+
+('TT003', 'V003', N'Momo', '2024-05-14', 1320000, N'Thành công'),
+
+('TT004', 'V004', N'ZaloPay', '2024-05-14', 2200000, N'Thành công');
+
+
+
+-- 10. CHECKIN
+
+INSERT INTO CHECKIN VALUES 
+
+('CI001', 'V001', '2024-05-10 05:30:00'),
+
+('CI002', 'V002', '2024-05-10 05:45:00');
+
+
+
+-- 11. HANHLY
+
+INSERT INTO HANHLY VALUES 
+
+('HL001', 'V001', 30.0, 2, 0, 0),
+
+('HL002', 'V002', 20.0, 1, 0, 0),
+
+('HL003', 'V003', 45.0, 3, 600000, 200000),
+
+('HL004', 'V004', 15.0, 1, 0, 0);
+
+
+
+-- 12. NHANVIEN & PHANCONG (Nhân sự cho các chuyến bay)
+
+INSERT INTO NHANVIEN VALUES 
+
+('NV01', 'VNA', N'Phan Thanh Tùng', N'Cơ trưởng', N'ATPL', 20, N'Phi công'),
+
+('NV02', 'VNA', N'Nguyễn Cẩm Tú', N'Tiếp viên trưởng', N'Safety Cert', 10, N'Tiếp viên'),
+
+('NV03', 'VJC', N'Ricardo', N'Cơ phó', N'CPL', 7, N'Phi công');
+
+
+
+INSERT INTO PHANCONG VALUES 
+
+('PC001', 'VNA', 'CB001', 'HANSGN', 'VN-A321', 'NV01', N'Cơ trưởng', '06:00', '10:00'),
+
+('PC002', 'VNA', 'CB001', 'HANSGN', 'VN-A321', 'NV02', N'Tiếp viên trưởng', '06:00', '10:00'),
+
+('PC003', 'VJC', 'CB003', 'SGNHAN', 'VJ-A321', 'NV03', N'Cơ phó', '12:00', '16:00');
+
+
+
+-- 13. ROLES & NGUOIDUNG
+
+INSERT INTO ROLES VALUES 
+
+(1, N'Admin', N'Quản trị toàn hệ thống'),
+
+(2, N'Hỗ trợ', N'Nhân viên mặt đất/phòng vé'),
+
+(3, N'Khách hàng', N'Tài khoản thành viên');
+
+
+
+INSERT INTO NGUOIDUNG VALUES 
+
+(1, 'admin_super', 'root123', N'Vương Quản Trị', 'admin@airport.gov.vn', '0900000000', 1, N'Hoạt động', '2023-01-01'),
+
+(2, 'an_tran', 'an123', N'Trần Văn An', 'an.tv@gmail.com', '0901112223', 3, N'Hoạt động', '2024-01-15');`;
+
   const loadBookingDemo = () => {
     setQuery(bookingDemo);
+    setError(null);
+    setQueryResults(null);
+  };
+
+  const loadResetData = () => {
+    setQuery(resetDataQuery);
     setError(null);
     setQueryResults(null);
   };
@@ -150,11 +386,11 @@ WHERE V.MaVe = 'VE001';`;
     <main className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-6">
-          ✈️ Hệ Thống Quản Lý Chuyến Bay
+          Demo SQL
         </h1>
-        <p className="text-gray-600 mb-6">
+        {/* <p className="text-gray-600 mb-6">
           Demo đặt vé máy bay - Xem trạng thái database trước và sau khi đặt vé
-        </p>
+        </p> */}
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -169,7 +405,13 @@ WHERE V.MaVe = 'VE001';`;
                 onClick={loadBookingDemo}
                 className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors font-medium"
               >
-                ✈️ Demo Đặt Vé Máy Bay
+                Test query
+              </button>
+              <button
+                onClick={loadResetData}
+                className="px-4 py-2 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors font-medium"
+              >
+                Reset & Seed Data
               </button>
             </div>
           </div>
@@ -177,8 +419,8 @@ WHERE V.MaVe = 'VE001';`;
             id="query"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Nhập câu lệnh SQL của bạn hoặc click 'Demo Đặt Vé Máy Bay' để xem ví dụ..."
-            className="w-full h-48 p-3 border border-gray-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Nhập câu lệnh SQL hoặc click 'Test query' để xem ví dụ..."
+            className="w-full h-[600px] p-3 border border-gray-300 rounded-md font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <button
             onClick={executeQuery}
