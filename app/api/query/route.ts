@@ -16,7 +16,9 @@ const config = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { query } = await request.json();
+    const body = await request.json();
+    const query = body?.query;
+    const singleBatch = body?.singleBatch === true;
 
     if (!query || typeof query !== 'string') {
       return NextResponse.json(
@@ -25,11 +27,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Split queries by semicolon and filter out empty queries
-    const queries = query
-      .split(';')
-      .map((q) => q.trim())
-      .filter((q) => q.length > 0);
+    // Single batch: run entire script as one batch (for CURSOR, etc.)
+    const queries = singleBatch
+      ? [query.trim()]
+      : query
+          .split(';')
+          .map((q: string) => q.trim())
+          .filter((q: string) => q.length > 0);
 
     if (queries.length === 0) {
       return NextResponse.json(

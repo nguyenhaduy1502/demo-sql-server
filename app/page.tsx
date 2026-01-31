@@ -20,6 +20,7 @@ interface Demo {
   beforeQuery?: string; // Query để xem dữ liệu trước
   mainQuery: string; // B2: Câu truy vấn SQL chính
   afterQuery?: string; // B5: Query để xem dữ liệu sau
+  singleBatch?: boolean; // true = chạy cả block một lần (cho CURSOR)
 }
 
 export default function Home() {
@@ -370,27 +371,51 @@ FROM CHUYENBAY WHERE MaChuyenBay = 'CB001';`,
       title: "Cursor: Duyệt qua tất cả chuyến bay",
       description: `Bài toán: Cursor trong T-SQL dùng để duyệt từng dòng trong kết quả truy vấn (ví dụ danh sách chuyến bay).
       
-Mục đích: Trong SSMS có thể dùng DECLARE CURSOR, OPEN, FETCH, WHILE @@FETCH_STATUS = 0 để xử lý từng dòng. Ở đây ta thể hiện tập dữ liệu mà cursor sẽ duyệt (tương đương SELECT MaChuyenBay FROM CHUYENBAY).`,
+Mục đích: DECLARE CURSOR, OPEN, FETCH NEXT, WHILE @@FETCH_STATUS = 0 để xử lý từng dòng. Mỗi dòng được ghi vào bảng tạm @Kq; cuối script SELECT trả về kết quả duyệt.`,
       relatedTables: ["CHUYENBAY"],
+      singleBatch: true,
       beforeQuery: `SELECT COUNT(*) AS TongChuyenBay FROM CHUYENBAY;`,
-      mainQuery: `-- Tập dữ liệu mà Cursor sẽ duyệt từng dòng (tương đương cur_ChuyenBay)
-SELECT MaChuyenBay, MaTuyenBay, MaMayBay, NgayBay, GioCatCanh, GioHaCanh, Gate, TrangThai
-FROM CHUYENBAY
-ORDER BY MaChuyenBay;`,
+      mainQuery: `DECLARE @MaChuyenBay VARCHAR(10);
+DECLARE @Kq TABLE (ThuTu INT, MaChuyenBay VARCHAR(10));
+DECLARE @i INT = 0;
+DECLARE cur_ChuyenBay CURSOR FOR SELECT MaChuyenBay FROM CHUYENBAY ORDER BY MaChuyenBay;
+OPEN cur_ChuyenBay;
+FETCH NEXT FROM cur_ChuyenBay INTO @MaChuyenBay;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SET @i = @i + 1;
+    INSERT INTO @Kq VALUES (@i, @MaChuyenBay);
+    FETCH NEXT FROM cur_ChuyenBay INTO @MaChuyenBay;
+END;
+CLOSE cur_ChuyenBay;
+DEALLOCATE cur_ChuyenBay;
+SELECT * FROM @Kq ORDER BY ThuTu;`,
       afterQuery: `SELECT MaChuyenBay, TrangThai FROM CHUYENBAY ORDER BY MaChuyenBay;`,
     },
     {
       id: "cursor-duyet-ve",
       title: "Cursor: Duyệt qua tất cả vé (MaVe, TongTien)",
-      description: `Bài toán: Cursor duyệt từng vé và có thể xử lý (in ra, cộng dồn, v.v.) MaVe và TongTien.
+      description: `Bài toán: Cursor duyệt từng vé, lấy MaVe và TongTien để xử lý (in ra, cộng dồn, v.v.).
       
-Mục đích: Trong T-SQL script dùng FETCH NEXT FROM cur_Ve INTO @MaVe, @TongTien rồi xử lý trong vòng WHILE. Ở đây hiển thị kết quả tương đương: danh sách vé và tổng tiền.`,
+Mục đích: FETCH NEXT FROM cur_Ve INTO @MaVe, @TongTien trong vòng WHILE; mỗi dòng ghi vào @Kq; cuối script SELECT trả về danh sách vé đã duyệt.`,
       relatedTables: ["VE"],
+      singleBatch: true,
       beforeQuery: `SELECT COUNT(*) AS TongVe FROM VE;`,
-      mainQuery: `-- Tập dữ liệu mà Cursor cur_Ve duyệt (MaVe, TongTien)
-SELECT MaVe, MaChuyenBay, MaHK, GiaVe, Thue, TongTien, TrangThai
-FROM VE
-ORDER BY MaVe;`,
+      mainQuery: `DECLARE @MaVe VARCHAR(20), @TongTien DECIMAL(12,2);
+DECLARE @Kq TABLE (ThuTu INT, MaVe VARCHAR(20), TongTien DECIMAL(12,2));
+DECLARE @i INT = 0;
+DECLARE cur_Ve CURSOR FOR SELECT MaVe, TongTien FROM VE ORDER BY MaVe;
+OPEN cur_Ve;
+FETCH NEXT FROM cur_Ve INTO @MaVe, @TongTien;
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SET @i = @i + 1;
+    INSERT INTO @Kq VALUES (@i, @MaVe, @TongTien);
+    FETCH NEXT FROM cur_Ve INTO @MaVe, @TongTien;
+END;
+CLOSE cur_Ve;
+DEALLOCATE cur_Ve;
+SELECT * FROM @Kq ORDER BY ThuTu;`,
       afterQuery: `SELECT MaVe, TongTien, TrangThai FROM VE ORDER BY MaVe;`,
     },
   ];
@@ -511,7 +536,7 @@ INSERT INTO NGUOIDUNG VALUES
 (1, 'admin_super', 'root123', N'Vương Quản Trị', 'admin@airport.gov.vn', '0900000000', 1, N'Hoạt động', '2023-01-01'),
 (2, 'an_tran', 'an123', N'Trần Văn An', 'an.tv@gmail.com', '0901112223', 3, N'Hoạt động', '2024-01-15');`;
 
-  const executeQuery = async (query: string) => {
+  const executeQuery = async (query: string, options?: { singleBatch?: boolean }) => {
     setLoading(true);
     setError(null);
 
@@ -521,7 +546,7 @@ INSERT INTO NGUOIDUNG VALUES
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, singleBatch: options?.singleBatch }),
       });
 
       const data = await response.json();
@@ -566,8 +591,10 @@ INSERT INTO NGUOIDUNG VALUES
     setAfterData(null);
 
     try {
-      // B4: Thực thi câu lệnh chính
-      const results = await executeQuery(selectedDemo.mainQuery);
+      // B4: Thực thi câu lệnh chính (Cursor demo dùng singleBatch để chạy cả block)
+      const results = await executeQuery(selectedDemo.mainQuery, {
+        singleBatch: selectedDemo.singleBatch,
+      });
       setQueryResults(results);
 
       // B5: Load dữ liệu sau khi thực thi
