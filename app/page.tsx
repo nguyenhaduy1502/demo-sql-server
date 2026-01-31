@@ -32,6 +32,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"demos" | "custom">("demos");
 
   const demos: Demo[] = [
+    // ========== FUNCTIONS ==========
     {
       id: "function-tinhtongtien",
       title: "Function: Tính tổng tiền vé",
@@ -89,6 +90,30 @@ FROM GHE G
 LEFT JOIN VE V ON G.MaGhe = V.MaGhe AND V.MaChuyenBay = 'CB001'
 WHERE G.MaMayBay = (SELECT MaMayBay FROM CHUYENBAY WHERE MaChuyenBay = 'CB001');`,
     },
+    {
+      id: "function-tinhphihanhly",
+      title: "Function: Tính phí hành lý",
+      description: `Bài toán: Xây dựng Function tính phí hành lý theo trọng lượng vượt 20kg và số kiện vượt 1.
+      
+Mục đích: fn_TinhPhiHanhLy tính phí vượt trọng lượng (TrongLuong - 20) * 50000 và phí vượt số kiện (SoHL - 1) * 100000, dùng cho báo giá hoặc kiểm tra.`,
+      relatedTables: ["HANHLY"],
+      beforeQuery: `SELECT MaHanhLy, MaVe, TrongLuong, SoHL, PhiHL, PhiQC, PhiHL + PhiQC AS TongPhi
+FROM HANHLY WHERE MaVe = 'V001';`,
+      mainQuery: `-- Sử dụng Function fn_TinhPhiHanhLy (phí vượt 20kg, vượt 1 kiện)
+SELECT 
+    HL.MaHanhLy,
+    HL.TrongLuong,
+    HL.SoHL,
+    HL.PhiHL,
+    HL.PhiQC,
+    dbo.fn_TinhPhiHanhLy(HL.TrongLuong, HL.SoHL) AS PhiTinhBangFunction,
+    HL.PhiHL + HL.PhiQC AS TongPhiTrongDB
+FROM HANHLY HL
+WHERE HL.MaVe = 'V001';`,
+      afterQuery: `SELECT MaHanhLy, MaVe, TrongLuong, SoHL, PhiHL, PhiQC, PhiHL + PhiQC AS TongPhi
+FROM HANHLY WHERE MaVe = 'V001';`,
+    },
+    // ========== PROCEDURES ==========
     {
       id: "procedure-datve",
       title: "Procedure: Đặt vé máy bay",
@@ -236,6 +261,7 @@ EXEC DanhSachHanhKhach @MaChuyenBay = 'CB001';`,
 FROM VE V
 WHERE V.MaChuyenBay = 'CB001';`,
     },
+    // ========== TRIGGERS ==========
     {
       id: "trigger-thanhtoan",
       title: "Trigger: Tự động cập nhật trạng thái vé khi thanh toán",
@@ -293,6 +319,80 @@ FROM HANHLY HL
 WHERE HL.MaVe = 'V002'
 ORDER BY HL.MaHanhLy DESC;`,
     },
+    {
+      id: "trigger-tinhtongtienve",
+      title: "Trigger: Tự động cập nhật tổng tiền vé",
+      description: `Bài toán: Trigger trg_TinhTongTienVe tự động set TongTien = GiaVe + Thue khi INSERT hoặc UPDATE vé.
+      
+Mục đích: Đảm bảo TongTien luôn khớp với GiaVe + Thue, tránh sai lệch dữ liệu.`,
+      relatedTables: ["VE"],
+      beforeQuery: `SELECT MaVe, GiaVe, Thue, TongTien, GiaVe + Thue AS TongTienDung
+FROM VE WHERE MaVe = 'V005';`,
+      mainQuery: `-- Sửa TongTien sai (Trigger sẽ tự động sửa lại)
+UPDATE VE SET TongTien = 0 WHERE MaVe = 'V005';`,
+      afterQuery: `-- Trigger trg_TinhTongTienVe đã cập nhật TongTien = GiaVe + Thue
+SELECT MaVe, GiaVe, Thue, TongTien, GiaVe + Thue AS TongTienDung,
+    CASE WHEN TongTien = GiaVe + Thue THEN N'Khớp' ELSE N'Không khớp' END AS KetQua
+FROM VE WHERE MaVe = 'V005';`,
+    },
+    {
+      id: "trigger-kiemtratuyenbay",
+      title: "Trigger: Ngăn tuyến bay đi và đến trùng nhau",
+      description: `Bài toán: Trigger trg_KiemTraTuyenBay (INSTEAD OF INSERT) chặn không cho tạo tuyến bay có SanBayDi = SanBayDen.
+      
+Mục đích: Đảm bảo dữ liệu hợp lệ: tuyến bay phải có sân bay đi và sân bay đến khác nhau.`,
+      relatedTables: ["TUYENBAY"],
+      beforeQuery: `SELECT MaTuyenBay, SanBayDi, SanBayDen, KhoangCach, ThoiGianTrungBinh, GiaVeCoBan
+FROM TUYENBAY WHERE MaTuyenBay LIKE 'HAN%';`,
+      mainQuery: `-- Thử INSERT tuyến có đi = đến (Trigger sẽ từ chối và báo lỗi)
+INSERT INTO TUYENBAY (MaTuyenBay, SanBayDi, SanBayDen, KhoangCach, ThoiGianTrungBinh, GiaVeCoBan, TrangThai)
+VALUES ('HANHAN', 'HAN', 'HAN', 0, 0, 0, N'Hoạt động');`,
+      afterQuery: `SELECT MaTuyenBay, SanBayDi, SanBayDen
+FROM TUYENBAY WHERE MaTuyenBay = 'HANHAN';`,
+    },
+    {
+      id: "trigger-capnhattrangthaichuyenbay",
+      title: "Trigger: Cập nhật trạng thái chuyến bay Hoàn thành",
+      description: `Bài toán: Trigger trg_CapNhatTrangThaiChuyenBay khi UPDATE CHUYENBAY sẽ tự động đặt TrangThai = N'Hoàn thành' cho các chuyến đã hạ cánh (NgayBay < hôm nay, GioHaCanh < giờ hiện tại).
+      
+Mục đích: Đồng bộ trạng thái chuyến bay theo thời gian thực.`,
+      relatedTables: ["CHUYENBAY"],
+      beforeQuery: `SELECT MaChuyenBay, NgayBay, GioHaCanh, TrangThai
+FROM CHUYENBAY WHERE MaChuyenBay IN ('CB001', 'CB002');`,
+      mainQuery: `-- Cập nhật trạng thái (trigger có thể set Hoàn thành nếu điều kiện thỏa)
+UPDATE CHUYENBAY SET TrangThai = N'Đã hạ cánh' WHERE MaChuyenBay = 'CB001';`,
+      afterQuery: `SELECT MaChuyenBay, NgayBay, GioHaCanh, TrangThai
+FROM CHUYENBAY WHERE MaChuyenBay = 'CB001';`,
+    },
+    // ========== CURSOR ==========
+    {
+      id: "cursor-duyet-chuyenbay",
+      title: "Cursor: Duyệt qua tất cả chuyến bay",
+      description: `Bài toán: Cursor trong T-SQL dùng để duyệt từng dòng trong kết quả truy vấn (ví dụ danh sách chuyến bay).
+      
+Mục đích: Trong SSMS có thể dùng DECLARE CURSOR, OPEN, FETCH, WHILE @@FETCH_STATUS = 0 để xử lý từng dòng. Ở đây ta thể hiện tập dữ liệu mà cursor sẽ duyệt (tương đương SELECT MaChuyenBay FROM CHUYENBAY).`,
+      relatedTables: ["CHUYENBAY"],
+      beforeQuery: `SELECT COUNT(*) AS TongChuyenBay FROM CHUYENBAY;`,
+      mainQuery: `-- Tập dữ liệu mà Cursor sẽ duyệt từng dòng (tương đương cur_ChuyenBay)
+SELECT MaChuyenBay, MaTuyenBay, MaMayBay, NgayBay, GioCatCanh, GioHaCanh, Gate, TrangThai
+FROM CHUYENBAY
+ORDER BY MaChuyenBay;`,
+      afterQuery: `SELECT MaChuyenBay, TrangThai FROM CHUYENBAY ORDER BY MaChuyenBay;`,
+    },
+    {
+      id: "cursor-duyet-ve",
+      title: "Cursor: Duyệt qua tất cả vé (MaVe, TongTien)",
+      description: `Bài toán: Cursor duyệt từng vé và có thể xử lý (in ra, cộng dồn, v.v.) MaVe và TongTien.
+      
+Mục đích: Trong T-SQL script dùng FETCH NEXT FROM cur_Ve INTO @MaVe, @TongTien rồi xử lý trong vòng WHILE. Ở đây hiển thị kết quả tương đương: danh sách vé và tổng tiền.`,
+      relatedTables: ["VE"],
+      beforeQuery: `SELECT COUNT(*) AS TongVe FROM VE;`,
+      mainQuery: `-- Tập dữ liệu mà Cursor cur_Ve duyệt (MaVe, TongTien)
+SELECT MaVe, MaChuyenBay, MaHK, GiaVe, Thue, TongTien, TrangThai
+FROM VE
+ORDER BY MaVe;`,
+      afterQuery: `SELECT MaVe, TongTien, TrangThai FROM VE ORDER BY MaVe;`,
+    },
   ];
 
   const resetDataQuery = `-- Xóa dữ liệu cũ (Theo thứ tự an toàn)
@@ -339,7 +439,7 @@ INSERT INTO TUYENBAY VALUES
 
 -- 5. CHUYENBAY
 INSERT INTO CHUYENBAY VALUES 
-('CB001', 'HANSGN', 'VN-A321', '2024-05-10', '07:00', '09:05', 'Gate 01', N'Đúng giờ'),
+('CB001', 'HANSGN', 'VN-A321', '2024-05-10', '07:00', '09:05', 'Gate 01', N'Đã hạ cánh'),
 ('CB002', 'HANSGN', 'VN-A350', '2024-05-10', '10:00', '12:05', 'Gate 02', N'Đã hạ cánh'),
 ('CB003', 'SGNHAN', 'VJ-A321', '2024-05-15', '13:00', '15:05', 'Gate 05', N'Đúng giờ'),
 ('CB004', 'SGNDAD', 'QH-B787', '2024-05-15', '14:00', '15:20', 'Gate 08', N'Bị hoãn'),
@@ -385,10 +485,10 @@ INSERT INTO CHECKIN VALUES
 
 -- 11. HANHLY
 INSERT INTO HANHLY VALUES 
-('HL001', 'V001', 30.0, 2, 0, 0),
-('HL002', 'V002', 20.0, 1, 0, 0),
-('HL003', 'V003', 45.0, 3, 600000, 200000),
-('HL004', 'V004', 15.0, 1, 0, 0);
+('HL001', 'V001', 30.0, 2, 1500000, 200000),
+('HL002', 'V002', 20.0, 1, 1000000, 100000),
+('HL003', 'V003', 45.0, 3, 2250000, 300000),
+('HL004', 'V004', 15.0, 1, 750000, 100000);
 
 -- 12. NHANVIEN & PHANCONG
 INSERT INTO NHANVIEN VALUES 
@@ -590,26 +690,42 @@ INSERT INTO NGUOIDUNG VALUES
               <h2 className="text-xl font-semibold text-gray-800 mb-4">
                 Chọn Demo
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {demos.map((demo) => (
-                  <button
-                    key={demo.id}
-                    onClick={() => loadDemo(demo)}
-                    className={`p-4 border-2 rounded-lg text-left transition-colors ${
-                      selectedDemo?.id === demo.id
-                        ? "border-blue-600 bg-blue-50"
-                        : "border-gray-300 hover:border-blue-400"
-                    }`}
-                  >
-                    <h3 className="font-semibold text-gray-800 mb-2">
-                      {demo.title}
+              {[
+                { label: "Functions", prefix: "function-" },
+                { label: "Procedures", prefix: "procedure-" },
+                { label: "Triggers", prefix: "trigger-" },
+                { label: "Cursor", prefix: "cursor-" },
+              ].map(({ label, prefix }) => {
+                const items = demos.filter((d) => d.id.startsWith(prefix));
+                if (items.length === 0) return null;
+                return (
+                  <div key={prefix} className="mb-6 last:mb-0">
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                      {label}
                     </h3>
-                    <p className="text-sm text-gray-600 line-clamp-2">
-                      {demo.description.split("\n")[0]}
-                    </p>
-                  </button>
-                ))}
-              </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {items.map((demo) => (
+                        <button
+                          key={demo.id}
+                          onClick={() => loadDemo(demo)}
+                          className={`p-4 border-2 rounded-lg text-left transition-colors ${
+                            selectedDemo?.id === demo.id
+                              ? "border-blue-600 bg-blue-50"
+                              : "border-gray-300 hover:border-blue-400"
+                          }`}
+                        >
+                          <h3 className="font-semibold text-gray-800 mb-2">
+                            {demo.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 line-clamp-2">
+                            {demo.description.split("\n")[0]}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Selected Demo Details */}
