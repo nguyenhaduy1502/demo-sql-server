@@ -522,5 +522,92 @@ BEGIN
 END
 GO
 
+-- An toàn thông tin
+--Tạo role bán vé
+CREATE ROLE RoleBanVe;
+-- Cấp quyền Role bán vé
+GRANT SELECT ON SANBAY TO RoleBanVe;
+GRANT SELECT ON CHUYENBAY TO RoleBanVe;
+GRANT SELECT ON GHE TO RoleBanVe;
+GRANT SELECT, INSERT ON KHACHHANG TO RoleBanVe;
+GRANT SELECT, INSERT ON VE TO RoleBanVe;
+GRANT SELECT, INSERT ON THANHTOAN TO RoleBanVe;
+
+--Tao Role quản lý chuyến bay
+CREATE ROLE RoleQuanLyChuyenBay;
+-- Cấp quyền cho Role quản lý chuyến bay
+GRANT SELECT, INSERT, UPDATE ON SANBAY TO RoleQuanLyChuyenBay;
+GRANT SELECT, INSERT, UPDATE ON CHUYENBAY TO RoleQuanLyChuyenBay;
+GRANT SELECT, INSERT, UPDATE ON GHE TO RoleQuanLyChuyenBay;
+GRANT SELECT ON VE TO RoleQuanLyChuyenBay;
+GRANT SELECT ON THANHTOAN TO RoleQuanLyChuyenBay;
+
+--Tạo Role quản trị hệ thống
+CREATE ROLE RoleAdmin;
+--Cấp quyền Quyền cho RoleAdmin(Toàn quyền hệ thống)
+GRANT SELECT, INSERT, UPDATE, DELETE ON SANBAY TO RoleAdmin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON CHUYENBAY TO RoleAdmin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON GHE TO RoleAdmin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON KHACHHANG TO RoleAdmin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON VE TO RoleAdmin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON HOADON TO RoleAdmin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON NGUOIDUNG TO RoleAdmin;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ROLES TO RoleAdmin;
+
+--Viết stored tạo người dùng
+CREATE PROCEDURE sp_ThemNguoiDung 
+@Username VARCHAR(50), @Password VARCHAR(100), @HoTen NVARCHAR(100), @Email VARCHAR(100),
+@SoDT VARCHAR(15), @RoleID INT, @TrangThai NVARCHAR(30)
+AS
+BEGIN
+SET NOCOUNT ON;
+IF EXISTS (SELECT 1 FROM NGUOIDUNG WHERE Username=@Username) 
+BEGIN 
+  RAISERROR (N'Username đã tồn tại',16,1); 
+  RETURN; 
+END
+   INSERT INTO NGUOIDUNG (Username,Password,HoTen,Email,SoDT,RoleID,TrangThai,NgayTao)
+   VALUES (@Username,HASHBYTES('SHA2_256',@Password),@HoTen,@Email,@SoDT,@RoleID,@TrangThai,GETDATE());
+END;
+
+--Gọi stored thêm người dùng
+EXEC sp_ThemNguoiDung 'nv_banve','123456',N'Nguyễn Văn Bán Vé','banve@gmail.com','0901111111',1,N'Hoạt động';
+EXEC sp_ThemNguoiDung 'ql_chuyenbay','123456',N'Trần Văn Quản Lý','quanly@gmail.com','0902222222',2,N'Hoạt động';
+EXEC sp_ThemNguoiDung 'admin_ht','123456',N'Quản Trị Hệ Thống','admin@gmail.com','0903333333',3,N'Hoạt động';
+
+--Phân người dùng vào các role tương ứng
+ALTER ROLE RoleBanVe ADD MEMBER nv_banve;
+ALTER ROLE RoleQuanLyChuyenBay ADD MEMBER ql_chuyenbay;
+ALTER ROLE RoleAdmin ADD MEMBER admin_ht;
+
+-- Đăng nhập, xác thực tài khoản
+CREATE PROCEDURE sp_DangNhap 
+@Username VARCHAR(50), 
+@Password VARCHAR(100)
+AS
+BEGIN
+SET NOCOUNT ON;
+SELECT UserID,Username,HoTen,Email,SoDT,RoleID 
+FROM NGUOIDUNG 
+WHERE Username=@Username AND Password=HASHBYTES('SHA2_256',@Password) AND TrangThai=N'Hoạt động';
+END;
+GO
+
+--Backup dữ liệu
+BACKUP DATABASE QuanLyChuyenBay
+TO DISK = 'D:\Backup\QuanLyChuyenBay.bak'
+WITH INIT;
+
+-- Restore dữ liệu
+RESTORE DATABASE QuanLyChuyenBay
+FROM DISK = 'D:\Backup\QuanLyChuyenBay.bak'
+WITH REPLACE;
+
+
+
+
+
+
+
 PRINT N'Tạo database QuanLyChuyenBay hoàn tất.';
 GO
