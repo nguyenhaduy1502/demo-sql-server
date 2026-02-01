@@ -522,6 +522,56 @@ BEGIN
 END
 GO
 
+-- -----------------------------------------------------------------------------
+-- PHẦN 6: CURSOR
+-- -----------------------------------------------------------------------------
+/*
+-- Ví dụ 1: Cursor duyệt qua tất cả chuyến bay, đưa kết quả vào bảng tạm
+DECLARE @MaChuyenBay VARCHAR(10), @MaTuyenBay VARCHAR(10), @NgayBay DATE, @TrangThai NVARCHAR(30);
+DECLARE @Kq TABLE (MaChuyenBay VARCHAR(10), MaTuyenBay VARCHAR(10), NgayBay DATE, TrangThai NVARCHAR(30));
+
+DECLARE cur_ChuyenBay CURSOR LOCAL FORWARD_ONLY READ_ONLY FOR
+    SELECT MaChuyenBay, MaTuyenBay, NgayBay, TrangThai FROM CHUYENBAY;
+
+OPEN cur_ChuyenBay;
+FETCH NEXT FROM cur_ChuyenBay INTO @MaChuyenBay, @MaTuyenBay, @NgayBay, @TrangThai;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    INSERT INTO @Kq (MaChuyenBay, MaTuyenBay, NgayBay, TrangThai)
+    VALUES (@MaChuyenBay, @MaTuyenBay, @NgayBay, @TrangThai);
+    FETCH NEXT FROM cur_ChuyenBay INTO @MaChuyenBay, @MaTuyenBay, @NgayBay, @TrangThai;
+END
+
+CLOSE cur_ChuyenBay;
+DEALLOCATE cur_ChuyenBay;
+
+SELECT * FROM @Kq;
+*/
+
+/*
+-- Ví dụ 2: Cursor duyệt qua vé (MaVe, TongTien), đưa kết quả vào bảng tạm
+DECLARE @MaVe VARCHAR(20), @TongTien DECIMAL(12,2);
+DECLARE @Kq TABLE (MaVe VARCHAR(20), TongTien DECIMAL(12,2));
+
+DECLARE cur_Ve CURSOR LOCAL FORWARD_ONLY READ_ONLY FOR
+    SELECT MaVe, TongTien FROM VE;
+
+OPEN cur_Ve;
+FETCH NEXT FROM cur_Ve INTO @MaVe, @TongTien;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    INSERT INTO @Kq (MaVe, TongTien) VALUES (@MaVe, @TongTien);
+    FETCH NEXT FROM cur_Ve INTO @MaVe, @TongTien;
+END
+
+CLOSE cur_Ve;
+DEALLOCATE cur_Ve;
+
+SELECT * FROM @Kq;
+*/
+
 -- An toàn thông tin
 --Tạo role bán vé
 CREATE ROLE RoleBanVe;
@@ -602,11 +652,6 @@ WITH INIT;
 RESTORE DATABASE QuanLyChuyenBay
 FROM DISK = 'D:\Backup\QuanLyChuyenBay.bak'
 WITH REPLACE;
-
-
-
-
-
 
 
 PRINT N'Tạo database QuanLyChuyenBay hoàn tất.';
